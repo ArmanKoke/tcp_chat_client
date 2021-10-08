@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -76,6 +77,7 @@ func NewServer(c net.Conn) *Server {
 func (s *Server) Listen() {
 	for {
 		msg, err := bufio.NewReader(s.Conn).ReadBytes('\n')
+		msg, err = decode(msg)
 		switch {
 		case err == io.EOF:
 			log.Fatal("Disconnected from server")
@@ -161,4 +163,23 @@ func (r *Reader) FromStdIn() ([]byte, error) {
 		return nil, errors.New("Text is unredable, retype!")
 	}
 	return text[:len(text)-1], nil
+}
+
+const DELIMETER = "//"
+
+var Splitter = []byte(DELIMETER)
+
+func decode(b []byte) ([]byte, error) {
+	bodyLen := bytes.Split(b, Splitter)[0]
+	length, err := strconv.Atoi(string(bodyLen))
+	if err != nil {
+		return nil, fmt.Errorf("no message body")
+	}
+	if length == 0 {
+		return nil, fmt.Errorf("message body is empty")
+	}
+
+	padding := len(bodyLen) + len(Splitter)
+	body := append(b[padding:padding+length], []byte("\n")...)
+	return body, nil
 }
